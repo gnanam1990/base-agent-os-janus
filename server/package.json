@@ -9,6 +9,12 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js"
   },
+  "dependencies": {
+    "@janus/core": "workspace:*",
+    "hono": "^4.0.0",
+    "ethers": "^6.13.0",
+    "viem": "^2.21.0"
+  },
   "devDependencies": {
     "typescript": "^5.4.0",
     "tsx": "^4.0.0",

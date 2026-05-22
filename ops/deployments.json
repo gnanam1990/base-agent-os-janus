@@ -8,6 +8,13 @@
       "deployer": "0xPLACEHOLDER",
       "agent": "0xPLACEHOLDER",
       "basescan": "https://basescan.org/address/0xPLACEHOLDER#code"
+    },
+    "eas-schemas": {
+      "primary": {
+        "uid": "0xPLACEHOLDER",
+        "schema": "address base_address,bytes32 identity_id,string basename,uint256 verified_at",
+        "easscan": "https://base.easscan.org/schema/view/0xPLACEHOLDER"
+      }
     }
   }
 }

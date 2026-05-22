@@ -7,7 +7,15 @@
 
 ## Endpoints
 
-To be filled in after Stage 09 (or equivalent).
+| Endpoint | Price | Description |
+|----------|-------|-------------|
+| `GET /api/identity/:seed` | $0.10 | Resolve identity by basename, ENS, or address |
+| `GET /api/identity/:seed/full` | $1.00 | Full identity aggregation with all sources |
+| `GET /api/identity/:id/onchain` | Free | On-chain identity lookup from JanusRegistry |
+| `POST /api/identity/:id/link` | Free | Submit cross-chain link signatures |
+| `POST /api/identity/:id/unlink` | Free | Submit unlink request |
+| `GET /health` | Free | Health check |
+| `GET /openapi.json` | Free | OpenAPI specification |
 
 ## On-chain
 

@@ -11,7 +11,7 @@ To be filled in after Stage 09 (or equivalent).
 
 ## On-chain
 
-To be filled in after Stage 04.
+- **JanusRegistry** - Deploy pending (see `ops/deployments.json` after mainnet deploy)
 
 ## Part of the Base Agent OS
 

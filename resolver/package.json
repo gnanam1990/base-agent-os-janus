@@ -1,0 +1,20 @@
+{
+  "name": "@janus/resolver",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@janus/core": "workspace:*",
+    "ethers": "^6.13.0",
+    "viem": "^2.21.0",
+    "p-timeout": "^6.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}

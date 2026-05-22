@@ -12,6 +12,7 @@
   "dependencies": {
     "@janus/core": "workspace:*",
     "hono": "^4.0.0",
+    "@hono/node-server": "^1.0.0",
     "ethers": "^6.13.0",
     "viem": "^2.21.0"
   },

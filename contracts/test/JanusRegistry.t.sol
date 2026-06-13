@@ -117,10 +117,24 @@ contract JanusRegistryTest is Test {
     // ─── linkChain Tests ────────────────────────────────────────────────
     function _signMessage(bytes32 identityId, uint16 chainBit, address addr, uint256 nonce, uint64 expires, uint256 signerPk)
         internal
-        pure
+        view
         returns (bytes memory)
     {
-        bytes32 msgHash = keccak256(abi.encodePacked(identityId, chainBit, addr, nonce, expires));
+        return _signMessageFor(address(registry), identityId, chainBit, addr, nonce, expires, signerPk);
+    }
+
+    function _signMessageFor(
+        address verifyingContract,
+        bytes32 identityId,
+        uint16 chainBit,
+        address addr,
+        uint256 nonce,
+        uint64 expires,
+        uint256 signerPk
+    ) internal view returns (bytes memory) {
+        bytes32 msgHash = keccak256(
+            abi.encodePacked(block.chainid, verifyingContract, identityId, chainBit, addr, nonce, expires)
+        );
         bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", msgHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, ethSignedHash);
         return abi.encodePacked(r, s, v);
@@ -329,5 +343,70 @@ contract JanusRegistryTest is Test {
         vm.prank(user1);
         vm.expectRevert(JanusRegistry.NotLinked.selector);
         registry.unlinkChain(identityId1, 1);
+    }
+
+    // ─── Signature Replay / Binding Tests ───────────────────────────────
+    /// @notice Signatures must be bound to the specific contract instance:
+    ///         a signature valid on one deployment must be rejected on another
+    ///         (prevents cross-contract / cross-chain replay).
+    function test_linkChain_crossContractReplay_reverts() public {
+        vm.prank(agentAddr);
+        registry.registerIdentity(identityId1, user1, bytes32(0), bytes32(0));
+
+        // Second, independent deployment of the same registry.
+        vm.prank(owner);
+        JanusRegistry registry2 = new JanusRegistry(agentAddr);
+        vm.prank(agentAddr);
+        registry2.registerIdentity(identityId1, user1, bytes32(0), bytes32(0));
+
+        uint256 nonce = 1;
+        uint64 expires = uint64(block.timestamp + 3600);
+        uint16 chainBit = 1;
+        address addr = polyAddr;
+
+        // Sign for `registry` (the legitimate target).
+        bytes memory baseSig = _signMessageFor(address(registry), identityId1, chainBit, addr, nonce, expires, USER1_PK);
+        bytes memory chainSig = _signMessageFor(address(registry), identityId1, chainBit, addr, nonce, expires, POLY_PK);
+
+        registry.linkChain(identityId1, chainBit, addr, baseSig, chainSig, nonce, expires);
+
+        // Replaying the SAME signatures against a different deployment must fail.
+        vm.expectRevert(JanusRegistry.InvalidSignature.selector);
+        registry2.linkChain(identityId1, chainBit, addr, baseSig, chainSig, nonce, expires);
+    }
+
+    /// @notice A signature created for a different verifying contract is rejected.
+    function test_linkChain_wrongVerifyingContract_reverts() public {
+        vm.prank(agentAddr);
+        registry.registerIdentity(identityId1, user1, bytes32(0), bytes32(0));
+
+        uint256 nonce = 1;
+        uint64 expires = uint64(block.timestamp + 3600);
+        uint16 chainBit = 1;
+        address addr = polyAddr;
+
+        // Sign binding to an unrelated contract address.
+        bytes memory baseSig = _signMessageFor(address(0xBEEF), identityId1, chainBit, addr, nonce, expires, USER1_PK);
+        bytes memory chainSig = _signMessageFor(address(0xBEEF), identityId1, chainBit, addr, nonce, expires, POLY_PK);
+
+        vm.expectRevert(JanusRegistry.InvalidSignature.selector);
+        registry.linkChain(identityId1, chainBit, addr, baseSig, chainSig, nonce, expires);
+    }
+
+    /// @notice Linking the zero address is rejected.
+    function test_linkChain_zeroAddress_reverts() public {
+        vm.prank(agentAddr);
+        registry.registerIdentity(identityId1, user1, bytes32(0), bytes32(0));
+
+        uint256 nonce = 1;
+        uint64 expires = uint64(block.timestamp + 3600);
+        uint16 chainBit = 1;
+        address addr = address(0);
+
+        bytes memory baseSig = _signMessage(identityId1, chainBit, addr, nonce, expires, USER1_PK);
+        bytes memory chainSig = _signMessage(identityId1, chainBit, addr, nonce, expires, POLY_PK);
+
+        vm.expectRevert(JanusRegistry.ZeroAddress.selector);
+        registry.linkChain(identityId1, chainBit, addr, baseSig, chainSig, nonce, expires);
     }
 }

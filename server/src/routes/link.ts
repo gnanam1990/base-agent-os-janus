@@ -18,7 +18,16 @@ linkRouter.post('/api/identity/:id/link', async (c) => {
     const body = await c.req.json();
     const { chain_id, chain_address, base_signature, chain_signature, nonce, expires } = body;
 
-    if (!chain_id || !chain_address || !base_signature || !chain_signature || !nonce || !expires) {
+    // Note: chain_id 0 (Base) and nonce 0 are valid values, so check for
+    // presence explicitly rather than truthiness.
+    if (
+      chain_id == null ||
+      !chain_address ||
+      !base_signature ||
+      !chain_signature ||
+      nonce == null ||
+      !expires
+    ) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
 
@@ -75,7 +84,9 @@ linkRouter.post('/api/identity/:id/unlink', async (c) => {
     const body = await c.req.json();
     const { chain_id, owner_signature, nonce, expires } = body;
 
-    if (!chain_id || !owner_signature || !nonce || !expires) {
+    // Note: chain_id 0 (Base) and nonce 0 are valid values, so check for
+    // presence explicitly rather than truthiness.
+    if (chain_id == null || !owner_signature || nonce == null || !expires) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
 

@@ -2,6 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /// @title JanusRegistry
 /// @notice On-chain identity registry for cross-chain identity resolution
@@ -18,6 +20,7 @@ contract JanusRegistry is Ownable {
     error NotIdentityOwner();
     error AlreadyLinked();
     error NotLinked();
+    error ZeroAddress();
 
     // ─── Events ─────────────────────────────────────────────────────────
     event IdentityRegistered(
@@ -124,6 +127,7 @@ contract JanusRegistry is Ownable {
         uint64 expires
     ) external {
         if (chainBit > 4) revert InvalidChainBit();
+        if (addr == address(0)) revert ZeroAddress();
         if (identities[identityId].baseAddress == address(0)) revert IdentityUnknown();
         if (block.timestamp > expires) revert SignatureExpired();
         if (_usedNonces[identityId][nonce]) revert NonceUsed();
@@ -189,6 +193,13 @@ contract JanusRegistry is Ownable {
     }
 
     // ─── Internal Helpers ───────────────────────────────────────────────
+    /// @dev Recovers the signer over an EIP-191 (personal_sign) hash of the link
+    ///      parameters. The hashed payload binds `block.chainid` and
+    ///      `address(this)` so a signature is only valid for this specific
+    ///      registry on this specific chain and cannot be replayed against
+    ///      another deployment, chain, identity, address, or after expiry.
+    ///      Uses OZ ECDSA which validates signature length, rejects malleable
+    ///      (high-s) signatures, and never returns address(0).
     function _verifySignature(
         address signer,
         bytes32 identityId,
@@ -197,10 +208,12 @@ contract JanusRegistry is Ownable {
         uint256 nonce,
         uint64 expires,
         bytes calldata sig
-    ) internal pure {
-        bytes32 msgHash = keccak256(abi.encodePacked(identityId, chainBit, addr, nonce, expires));
-        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", msgHash));
-        address recovered = ecrecover(ethSignedHash, uint8(sig[64]), bytes32(sig[0:32]), bytes32(sig[32:64]));
-        if (recovered != signer) revert InvalidSignature();
+    ) internal view {
+        bytes32 msgHash = keccak256(
+            abi.encodePacked(block.chainid, address(this), identityId, chainBit, addr, nonce, expires)
+        );
+        bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(msgHash);
+        (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(ethSignedHash, sig);
+        if (err != ECDSA.RecoverError.NoError || recovered != signer) revert InvalidSignature();
     }
 }
